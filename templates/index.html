@@ -1,0 +1,266 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8f5">
+  <meta name="description" content="Odekake Biyori combines hourly weather forecasts with daylight, golden hour, and blue hour to help you choose a better time to go outdoors.">
+  <title>Odekake Biyori · Smart Outdoor Activity Planner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#planner">Skip to planner</a>
+
+  <div class="site-shell">
+    <header class="site-header" aria-label="Site header">
+      <a class="brand" href="/" aria-label="Odekake Biyori home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="25" height="25" fill="none"
+               stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+            <circle cx="16" cy="16" r="5.5"/>
+            <path d="M16 2v5M16 25v5M2 16h5M25 16h5M6.1 6.1l3.6 3.6M22.3 22.3l3.6 3.6M25.9 6.1l-3.6 3.6M9.7 22.3l-3.6 3.6"/>
+          </svg>
+        </span>
+        <span class="brand-name">ODEKAKE <strong>BIYORI</strong></span>
+      </a>
+      <nav class="header-nav" aria-label="Primary navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="/docs">API docs</a>
+        <a class="nav-action" href="#planner">
+          Explore forecast <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <div class="eyebrow">
+            <span class="eyebrow-line" aria-hidden="true"></span>
+            YOUR OUTDOOR MOMENT, MADE CLEARER
+          </div>
+
+          <h1 id="hero-title" class="hero-japanese" lang="ja">お出かけ日和</h1>
+          <p class="hero-roman">
+            ODEKAKE BIYORI
+            <span aria-hidden="true">·</span>
+            SMART OUTDOOR ACTIVITY PLANNER
+          </p>
+          <p class="hero-description">
+            Find your perfect moment outdoors by fusing hourly weather
+            forecasts with daylight, golden hour, and blue hour windows.
+          </p>
+          <a class="hero-link" href="#planner">
+            Plan your outing <span aria-hidden="true">↓</span>
+          </a>
+        </div>
+
+        <aside class="hero-art" aria-label="Weather and sunlight combined illustration">
+          <div class="art-glow" aria-hidden="true"></div>
+          <div class="sun-orb" aria-hidden="true">
+            <span class="sun-inner"></span>
+          </div>
+
+          <div class="art-content">
+            <span class="art-label">A LITTLE MORE THAN A WEATHER FORECAST</span>
+            <h2>Better plans<br>begin with <em>timing.</em></h2>
+            <div class="art-divider"></div>
+            <div class="art-data">
+              <span>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                  <path d="M20 16.6A4.5 4.5 0 0 0 18 8h-1A6 6 0 0 0 5 9a4 4 0 0 0 .5 8H19"/>
+                  <path d="M8 20l1.5-2M13 20l1.5-2"/>
+                </svg>
+                Weather
+              </span>
+              <span class="art-plus" aria-hidden="true">+</span>
+              <span>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                  <circle cx="12" cy="9" r="4"/>
+                  <path d="M2 19h20M12 1v2M3.8 5l1.5 1M20.2 5l-1.5 1M2 11h2M20 11h2"/>
+                </svg>
+                Daylight
+              </span>
+              <span class="art-plus" aria-hidden="true">=</span>
+              <span class="art-result">Your best hour</span>
+            </div>
+          </div>
+
+          <div class="art-corner" aria-hidden="true">晴れの日を、もっと楽しく。</div>
+        </aside>
+      </section>
+
+      <!-- Planner -->
+      <section class="planner-section" id="planner" aria-labelledby="planner-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">01 / MAKE A PLAN</p>
+            <h2 id="planner-title">Where will the day take you?</h2>
+            <p>Choose your city and activity. We'll find a promising window for you.</p>
+          </div>
+        </div>
+
+        <div class="controls-panel" aria-label="Forecast settings">
+          <div class="control-group location-group">
+            <label for="location-select">LOCATION</label>
+            <div class="select-wrap">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                   stroke="currentColor" stroke-width="1.8"
+                   stroke-linecap="round" stroke-linejoin="round"
+                   aria-hidden="true">
+                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/>
+                <circle cx="12" cy="10" r="2.5"/>
+              </svg>
+              <select id="location-select" name="location">
+                <option value="kyoto" selected>Kyoto, Japan</option>
+                <option value="osaka">Osaka, Japan</option>
+                <option value="tokyo">Tokyo, Japan</option>
+              </select>
+              <svg class="select-chevron" viewBox="0 0 24 24" width="16"
+                   height="16" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round"
+                   stroke-linejoin="round" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="control-group activity-group">
+            <span class="control-label" id="activity-label">ACTIVITY</span>
+            <div id="activity-buttons" class="segmented"
+                 role="group" aria-labelledby="activity-label">
+              <span class="control-placeholder">Loading activities…</span>
+            </div>
+          </div>
+
+          <div class="control-group duration-group">
+            <span class="control-label" id="days-label">FORECAST RANGE</span>
+            <div id="days-buttons" class="segmented"
+                 role="group" aria-labelledby="days-label"></div>
+          </div>
+        </div>
+
+        <div class="forecast-head">
+          <div>
+            <p class="section-kicker">02 / YOUR RECOMMENDATION</p>
+            <h2>Make the most of your day.</h2>
+          </div>
+          <span class="forecast-source">
+            <span class="source-dot" aria-hidden="true"></span>
+            Powered by two public APIs
+          </span>
+        </div>
+
+        <div id="answer" class="answer" aria-live="polite"
+             aria-atomic="true" aria-busy="true">
+          <div class="loading-shell" role="status">
+            <span class="spinner" aria-hidden="true"></span>
+            Preparing your outdoor recommendation…
+          </div>
+        </div>
+      </section>
+
+      <!-- Hourly forecast -->
+      <section class="forecast-section" aria-labelledby="daily-heading">
+        <div class="section-heading forecast-section-heading">
+          <div>
+            <p class="section-kicker">03 / HOURLY OUTLOOK</p>
+            <h2 id="daily-heading">A closer look at the hours.</h2>
+            <p>See how weather and lighting contribute to each hour's score.</p>
+          </div>
+
+          <div class="chart-key" aria-label="Chart legend">
+            <span><i class="key-dot" aria-hidden="true"></i> Daylight</span>
+            <span><i class="key-dot key-best" aria-hidden="true"></i> Best window</span>
+            <span><i class="key-dot key-night" aria-hidden="true"></i> Night / not eligible</span>
+          </div>
+        </div>
+
+        <div id="days" class="days" aria-live="polite"></div>
+      </section>
+
+      <!-- How it works -->
+      <section class="about-section" id="how-it-works" aria-labelledby="how-title">
+        <div class="about-intro">
+          <p class="section-kicker">04 / BEHIND THE RECOMMENDATION</p>
+          <h2 id="how-title">
+            <span class="heading-line">Two services.</span><br>
+            <span class="heading-line heading-line-accent">One thoughtful answer.</span>
+          </h2>
+          <p>
+            We're not just showing two forecasts side by side.
+            Our Flask service combines weather measurements with solar timing
+            to score each hour and find a suitable stretch for your activity.
+          </p>
+        </div>
+
+        <div class="about-details">
+          <div class="step">
+            <span class="step-number">01</span>
+            <div>
+              <h3>Understand the weather</h3>
+              <p>
+                Open-Meteo provides hourly temperature, rain probability,
+                wind speed, and cloud cover.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <span class="step-number">02</span>
+            <div>
+              <h3>Find the right light</h3>
+              <p>
+                Sunrise-Sunset.org provides sunrise, sunset,
+                golden hour, and blue hour for each forecast day.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <span class="step-number">03</span>
+            <div>
+              <h3>Recommend your moment</h3>
+              <div id="how-text">
+                <p>
+                  Each activity uses its own scoring rules to find
+                  a suitable continuous window.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Clean, professional footer -->
+    <footer class="footer">
+      <div class="footer-brand">
+        <span aria-hidden="true">☀</span>
+        <strong>Odekake Biyori</strong>
+        <span lang="ja">お出かけ日和</span>
+      </div>
+
+      <div class="footer-bottom">
+        <p>Weather-informed suggestions, not safety guarantees.</p>
+        <p>
+          Data:
+          <a href="https://open-meteo.com/" target="_blank"
+             rel="noopener noreferrer">Open-Meteo</a>
+          &amp;
+          <a href="https://sunrise-sunset.org/" target="_blank"
+             rel="noopener noreferrer">Sunrise-Sunset.org</a>
+        </p>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive OpenAPI documentation for Odekake Biyori.">
+  <title>API Documentation · Odekake Biyori</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css">
+  <style>
+    :root {
+      --canvas: #f7f8f5;
+      --ink: #1d3036;
+      --sage: #327a65;
+      --sage-dark: #245e4d;
+      --rule: #dfe5de;
+      --font: "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); }
+    .docs-header { background: #fff; border-bottom: 1px solid var(--rule); }
+    .docs-header-inner {
+      max-width: 1140px; margin: 0 auto; padding: 19px 26px;
+      display: flex; align-items: center; justify-content: space-between; gap: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); font-weight: 700; }
+    .brand-symbol {
+      display: grid; place-items: center; border-radius: 10px; background: #e8f2ec;
+      width: 37px; height: 37px; color: var(--sage); font-size: 23px;
+    }
+    .brand-name { letter-spacing: .09em; font-size: 12px; }
+    .return-link { color: var(--sage-dark); text-decoration: none; font-weight: 650; font-size: 13px; }
+    .return-link:hover { text-decoration: underline; }
+    .docs-intro { max-width: 1140px; margin: 0 auto; padding: 39px 26px 13px; }
+    .eyebrow { font-size: 11px; letter-spacing: .16em; font-weight: 750; color: var(--sage); }
+    .docs-intro h1 { margin: 8px 0 8px; font-size: clamp(28px, 4vw, 39px); letter-spacing: -.035em; }
+    .docs-intro p { margin: 0; color: #536a68; max-width: 690px; line-height: 1.7; font-size: 14px; }
+    .docs-intro code { color: var(--sage-dark); background: #e8f2ec; padding: 2px 5px; border-radius: 4px; }
+    .docs-shell {
+      max-width: 1140px; margin: 22px auto 48px; padding: 12px 15px 25px;
+      background: white; border: 1px solid var(--rule); border-radius: 16px;
+      box-shadow: 0 12px 36px rgba(24, 54, 48, .045);
+    }
+    #swagger-ui { min-height: 240px; }
+    .swagger-ui { font-family: var(--font); }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .info { margin: 23px 0 12px; }
+    .swagger-ui .info .title { color: var(--ink); }
+    .swagger-ui .scheme-container { background: transparent; box-shadow: none; }
+    .swagger-ui .btn.execute { background: var(--sage); border-color: var(--sage); }
+    .swagger-ui .btn.execute:hover { background: var(--sage-dark); }
+    .swagger-ui .opblock.opblock-get { background: rgba(50, 122, 101, .06); border-color: var(--sage); }
+    .swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--sage); }
+    .docs-footer { border-top: 1px solid var(--rule); padding: 20px 26px; color: #71817d; font-size: 12px; text-align: center; }
+    .docs-footer a { color: var(--sage-dark); }
+    @media (max-width: 640px) {
+      .docs-header-inner { padding: 14px 17px; }
+      .docs-intro { padding: 30px 17px 8px; }
+      .docs-shell { margin: 18px 10px 35px; padding: 7px; }
+      .swagger-ui .wrapper { padding: 0 5px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <a class="brand" href="/" aria-label="Odekake Biyori homepage">
+        <span class="brand-symbol" aria-hidden="true">☀</span>
+        <span class="brand-name">ODEKAKE BIYORI</span>
+      </a>
+      <a class="return-link" href="/">← Back to planner</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="docs-intro">
+      <div class="eyebrow">DEVELOPER REFERENCE / OPENAPI 3.0</div>
+      <h1>Explore the Odekake Biyori API.</h1>
+      <p>
+        Browse our four GET endpoints and expand one to select <strong>Try it out</strong>,
+        enter optional parameters, and click <strong>Execute</strong>. Requests run against
+        this Flask server. Source specification: <a href="/openapi.yaml"><code>openapi.yaml</code></a>.
+      </p>
+    </div>
+    <div class="docs-shell">
+      <div id="swagger-ui" aria-label="Interactive API documentation"></div>
+    </div>
+  </main>
+  <footer class="docs-footer">
+    Odekake Biyori · Weather data by
+    <a href="https://open-meteo.com/">Open-Meteo</a> and solar data by
+    <a href="https://sunrise-sunset.org/">Sunrise-Sunset.org</a>
+  </footer>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    window.addEventListener("load", () => {
+      if (typeof SwaggerUIBundle === "undefined") {
+        document.getElementById("swagger-ui").textContent =
+          "Could not load Swagger UI. Check your internet connection to load the documentation viewer.";
+        return;
+      }
+      window.ui = SwaggerUIBundle({
+        url: "/openapi.yaml",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        docExpansion: "list",
+        defaultModelsExpandDepth: 0,
+        displayRequestDuration: true,
+        filter: true,
+        supportedSubmitMethods: ["get"],
+        presets: [SwaggerUIBundle.presets.apis]
+      });
+    });
+  </script>
+</body>
+</html>

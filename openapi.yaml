@@ -1,0 +1,583 @@
+openapi: 3.0.3
+info:
+  title: Odekake Biyori API
+  version: 1.0.0
+  description: |
+    **Odekake Biyori (お出かけ日和)** is an outdoor-activity planner built with Flask.
+
+    Our web service combines two independently operated public APIs:
+    - **Open-Meteo** — hourly temperature, rain probability, wind and cloud cover.
+    - **Sunrise-Sunset.org v2** — sunrise, sunset, golden and blue hours.
+
+    The `/api/recommendation` endpoint fuses both data sources to compute an
+    activity-specific suitability score (0–100) and recommend an eligible,
+    consecutive three-hour window. Scores are custom heuristic estimates, **not**
+    guarantees of weather conditions or personal safety.
+
+    **Default location:** Kyoto, Japan. The `lat` and `lng` query parameters can
+    be used to choose other locations. Forecast hours are reported in the
+    location's timezone. The initial implementation uses a fixed UTC offset
+    for the Open-Meteo hourly timestamps, so forecasts spanning a daylight-saving
+    clock change outside Japan are a known limitation.
+
+    Source attribution: [Open-Meteo](https://open-meteo.com/) and
+    [Sunrise-Sunset.org](https://sunrise-sunset.org/).
+  contact:
+    name: Odekake Biyori
+servers:
+  - url: /
+    description: Current Flask host (for example, http://127.0.0.1:5000)
+tags:
+  - name: Activities
+    description: Available activity choices and scoring factors.
+  - name: Weather
+    description: Normalized hourly weather information from Open-Meteo.
+  - name: Solar
+    description: Solar-event times from Sunrise-Sunset.org v2.
+  - name: Recommendations
+    description: Original weather-and-solar data fusion and best-window selection.
+
+paths:
+  /api/activities:
+    get:
+      tags: [Activities]
+      summary: List supported activities and maximum points
+      description: |
+        Returns the activity identifiers accepted by `/api/recommendation`,
+        together with the maximum possible score for each factor.
+      operationId: listActivities
+      responses:
+        '200':
+          description: Activity metadata retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivitiesResponse'
+              example:
+                activities:
+                  - id: walking
+                    label: Walking / sightseeing
+                  - id: cycling
+                    label: Cycling
+                  - id: photography
+                    label: Photography
+                max_points:
+                  lighting: 25
+                  rain: 30
+                  temperature: 25
+                  wind: 20
+
+  /api/weather:
+    get:
+      tags: [Weather]
+      summary: Get hourly weather forecasts
+      description: |
+        Uses **Open-Meteo** and returns normalized hourly weather readings.
+        Times are ISO 8601 strings with a local UTC offset.
+      operationId: getWeather
+      parameters:
+        - $ref: '#/components/parameters/Latitude'
+        - $ref: '#/components/parameters/Longitude'
+        - $ref: '#/components/parameters/Days'
+      responses:
+        '200':
+          description: Hourly forecast retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeatherResponse'
+              example:
+                latitude: 35.0
+                longitude: 135.75
+                timezone: Asia/Tokyo
+                hours:
+                  - time: '2026-11-16T09:00:00+09:00'
+                    temperature: 15.2
+                    rain_probability: 0
+                    wind_speed: 2.6
+                    cloud_cover: 73
+                attribution:
+                  name: Open-Meteo.com
+                  url: https://open-meteo.com/
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          $ref: '#/components/responses/UpstreamFailure'
+
+  /api/solar:
+    get:
+      tags: [Solar]
+      summary: Get sunrise, sunset, golden hour and blue hour
+      description: |
+        Uses **Sunrise-Sunset.org v2** to retrieve solar events for one date.
+
+        Defaults to Kyoto's `Asia/Tokyo` timezone when using the default
+        location. **When providing custom `lat`/`lng`, also provide `tz`**
+        (for example `Asia/Tokyo`), as required by the updated Flask handler.
+        The `date` parameter is optional; when absent, the external provider
+        determines the current date for the requested timezone.
+      operationId: getSolarDay
+      parameters:
+        - $ref: '#/components/parameters/Latitude'
+        - $ref: '#/components/parameters/Longitude'
+        - name: tz
+          in: query
+          required: false
+          description: IANA timezone ID. Required by this service if custom coordinates are provided.
+          schema:
+            type: string
+            example: Asia/Tokyo
+        - name: date
+          in: query
+          required: false
+          description: Date in YYYY-MM-DD format; omit to use the provider's current date.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Solar events retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolarResponse'
+              example:
+                date: '2026-11-16'
+                sunrise: '2026-11-16T06:31:52+09:00'
+                sunset: '2026-11-16T16:50:59+09:00'
+                golden_hour:
+                  morning:
+                    begin: '2026-11-16T06:15:16+09:00'
+                    end: '2026-11-16T07:08:44+09:00'
+                  evening:
+                    begin: '2026-11-16T16:14:06+09:00'
+                    end: '2026-11-16T17:07:34+09:00'
+                blue_hour:
+                  morning:
+                    begin: '2026-11-16T06:04:54+09:00'
+                    end: '2026-11-16T06:15:16+09:00'
+                  evening:
+                    begin: '2026-11-16T17:07:34+09:00'
+                    end: '2026-11-16T17:17:56+09:00'
+                attribution:
+                  name: Sunrise-Sunset.org
+                  url: https://sunrise-sunset.org/
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          description: Sun does not rise or set normally in a polar region on this date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/UpstreamFailure'
+
+  /api/recommendation:
+    get:
+      tags: [Recommendations]
+      summary: Get a weather-and-daylight activity recommendation
+      description: |
+        **Original fused endpoint.** Fetches weather from Open-Meteo,
+        retrieves solar periods from Sunrise-Sunset.org for each forecast date,
+        and scores individual hours for the chosen activity.
+
+        Scores consist of temperature (25), rain probability (30), wind (20),
+        and lighting (25) points. The service selects the best eligible
+        consecutive three-hour window. Unusable nighttime hours can still
+        appear in `days[].hours` with numerical weather scores, but are marked
+        `has_light: false` and excluded from recommended windows.
+
+        If no eligible window is found, `best_overall` or a day's `best_window`
+        may be `null`. The response includes explanations and source attribution.
+      operationId: getRecommendation
+      parameters:
+        - $ref: '#/components/parameters/Latitude'
+        - $ref: '#/components/parameters/Longitude'
+        - $ref: '#/components/parameters/Days'
+        - name: activity
+          in: query
+          required: false
+          description: Outdoor activity, defaults to walking.
+          schema:
+            type: string
+            enum: [walking, cycling, photography]
+            default: walking
+      responses:
+        '200':
+          description: Recommendation computed using both external services.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+              example:
+                activity: photography
+                activity_label: Photography
+                best_overall:
+                  date: '2026-11-16'
+                  start: '2026-11-16T06:00:00+09:00'
+                  end: '2026-11-16T09:00:00+09:00'
+                  average_score: 92.8
+                  rating: Excellent
+                  summary: 'Excellent time for photography: 06:00-09:00.'
+                  reasons:
+                    - Comfortable temperature (about 13°C).
+                    - Low chance of rain (up to 0%).
+                    - Light wind (up to 5 km/h).
+                    - Golden hour (06:15-07:08) overlaps this window.
+                days:
+                  - date: '2026-11-16'
+                    sunrise: '2026-11-16T06:31:52+09:00'
+                    sunset: '2026-11-16T16:50:59+09:00'
+                    best_window:
+                      date: '2026-11-16'
+                      start: '2026-11-16T06:00:00+09:00'
+                      end: '2026-11-16T09:00:00+09:00'
+                      average_score: 92.8
+                      rating: Excellent
+                      summary: 'Excellent time for photography: 06:00-09:00.'
+                      reasons:
+                        - Golden hour overlaps this window.
+                    hours:
+                      - time: '2026-11-16T06:00:00+09:00'
+                        score: 97.0
+                        has_light: true
+                        temperature: 13.3
+                        rain_probability: 0
+                        wind_speed: 4.8
+                        cloud_cover: 44
+                        breakdown:
+                          temperature: 25.0
+                          rain: 30.0
+                          wind: 20.0
+                          lighting: 22.0
+                    note: null
+                location:
+                  name: Kyoto
+                  latitude: 35.0
+                  longitude: 135.75
+                  timezone: Asia/Tokyo
+                attribution:
+                  - name: Open-Meteo.com
+                    url: https://open-meteo.com/
+                  - name: Sunrise-Sunset.org
+                    url: https://sunrise-sunset.org/
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          description: Location/date has unsupported polar-day or polar-night solar behavior.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/UpstreamFailure'
+
+components:
+  parameters:
+    Latitude:
+      name: lat
+      in: query
+      required: false
+      description: Latitude in decimal degrees. Omit to use Kyoto (35.0116).
+      schema:
+        type: number
+        format: double
+        minimum: -90
+        maximum: 90
+    Longitude:
+      name: lng
+      in: query
+      required: false
+      description: Longitude in decimal degrees. Omit to use Kyoto (135.7681).
+      schema:
+        type: number
+        format: double
+        minimum: -180
+        maximum: 180
+    Days:
+      name: days
+      in: query
+      required: false
+      description: Number of forecast days. Must be a whole number between 1 and 3.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 3
+        default: 2
+
+  responses:
+    BadRequest:
+      description: Invalid query parameter (HTTP 400).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            fractionalDays:
+              summary: Fractional forecast duration
+              value:
+                error: "'days' must be a whole number."
+            invalidActivity:
+              summary: Unknown activity
+              value:
+                error: "Unknown activity 'swimming'. Choose one of: walking, cycling, photography."
+    UpstreamFailure:
+      description: Public weather or solar service unavailable or returned unusable data (HTTP 502).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: 'Open-Meteo request failed: upstream service unavailable'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error description.
+
+    Attribution:
+      type: object
+      required: [name, url]
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+
+    ActivitiesResponse:
+      type: object
+      required: [activities, max_points]
+      properties:
+        activities:
+          type: array
+          items:
+            type: object
+            required: [id, label]
+            properties:
+              id:
+                type: string
+                enum: [walking, cycling, photography]
+              label:
+                type: string
+        max_points:
+          $ref: '#/components/schemas/ScoreBreakdown'
+
+    ScoreBreakdown:
+      type: object
+      description: Scoring factors, individually capped at 25, 30, 20 and 25 points.
+      required: [temperature, rain, wind, lighting]
+      properties:
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 25
+        rain:
+          type: number
+          minimum: 0
+          maximum: 30
+        wind:
+          type: number
+          minimum: 0
+          maximum: 20
+        lighting:
+          type: number
+          minimum: 0
+          maximum: 25
+
+    WeatherHour:
+      type: object
+      required: [time, temperature, rain_probability, wind_speed, cloud_cover]
+      properties:
+        time:
+          type: string
+          format: date-time
+          description: Local hour start with UTC offset.
+        temperature:
+          type: number
+          description: Temperature in degrees Celsius.
+        rain_probability:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Precipitation probability in percent.
+        wind_speed:
+          type: number
+          description: Wind speed in kilometers per hour.
+        cloud_cover:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Cloud cover in percent.
+
+    WeatherResponse:
+      type: object
+      required: [latitude, longitude, timezone, hours, attribution]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        timezone:
+          type: string
+        hours:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeatherHour'
+        attribution:
+          $ref: '#/components/schemas/Attribution'
+
+    SolarPeriod:
+      type: object
+      required: [begin, end]
+      properties:
+        begin:
+          type: string
+          format: date-time
+          nullable: true
+        end:
+          type: string
+          format: date-time
+          nullable: true
+
+    MorningEvening:
+      type: object
+      required: [morning, evening]
+      properties:
+        morning:
+          $ref: '#/components/schemas/SolarPeriod'
+        evening:
+          $ref: '#/components/schemas/SolarPeriod'
+
+    SolarResponse:
+      type: object
+      required: [date, sunrise, sunset, golden_hour, blue_hour, attribution]
+      properties:
+        date:
+          type: string
+          format: date
+        sunrise:
+          type: string
+          format: date-time
+        sunset:
+          type: string
+          format: date-time
+        golden_hour:
+          $ref: '#/components/schemas/MorningEvening'
+        blue_hour:
+          $ref: '#/components/schemas/MorningEvening'
+        attribution:
+          $ref: '#/components/schemas/Attribution'
+
+    RecommendedWindow:
+      type: object
+      required: [date, start, end, average_score, rating, summary, reasons]
+      properties:
+        date:
+          type: string
+          format: date
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        average_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        rating:
+          type: string
+          enum: [Excellent, Good, Fair, Poor]
+        summary:
+          type: string
+        reasons:
+          type: array
+          items:
+            type: string
+
+    ScoredHour:
+      allOf:
+        - $ref: '#/components/schemas/WeatherHour'
+        - type: object
+          required: [score, breakdown, has_light]
+          properties:
+            score:
+              type: number
+              minimum: 0
+              maximum: 100
+            breakdown:
+              $ref: '#/components/schemas/ScoreBreakdown'
+            has_light:
+              type: boolean
+              description: Whether this hour is eligible for the activity's lighting requirements.
+
+    RecommendationDay:
+      type: object
+      required: [date, sunrise, sunset, best_window, hours, note]
+      properties:
+        date:
+          type: string
+          format: date
+        sunrise:
+          type: string
+          format: date-time
+        sunset:
+          type: string
+          format: date-time
+        best_window:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RecommendedWindow'
+        hours:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoredHour'
+        note:
+          type: string
+          nullable: true
+          description: Explanation when no eligible recommendation exists.
+
+    RecommendationLocation:
+      type: object
+      required: [name, latitude, longitude, timezone]
+      properties:
+        name:
+          type: string
+          nullable: true
+          description: Kyoto when default coordinates are used; otherwise null.
+        latitude:
+          type: number
+        longitude:
+          type: number
+        timezone:
+          type: string
+
+    RecommendationResponse:
+      type: object
+      required: [activity, activity_label, best_overall, days, location, attribution]
+      properties:
+        activity:
+          type: string
+          enum: [walking, cycling, photography]
+        activity_label:
+          type: string
+        best_overall:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RecommendedWindow'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationDay'
+        location:
+          $ref: '#/components/schemas/RecommendationLocation'
+        attribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attribution'
